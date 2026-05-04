@@ -1,0 +1,330 @@
+================================================================================
+                          CPU Schematic -- 16-bit CPU
+================================================================================
+
+
+1. SYSTEM OVERVIEW
+================================================================================
+
+  +-----------------------------------------------------------------+
+  |                          CPU CHIP                                |
+  |                                                                  |
+  |   +-------------------+                                         |
+  |   |   Control Unit    |   Drives the Fetch / Decode / Execute   |
+  |   |                   |   cycle. Reads each instruction from    |
+  |   |   +----+  +----+  |   memory, breaks it into fields, and    |
+  |   |   | PC |  | IR |  |   tells the other components what to do.|
+  |   |   +--+-+  +--+-+  |                                         |
+  |   +------|---------+--+                                         |
+  |          |         |                                             |
+  |   +------v---------v------+                                     |
+  |   |     Internal Bus      |   All data flows through here.      |
+  |   +--+--------+--------+-+   The control unit decides who       |
+  |      |        |        |      sends and who receives each cycle. |
+  |      |        |        |                                         |
+  |  +---v---+ +--v----+ +-v----------+                             |
+  |  |  ALU  | | Reg   | |   FLAGS    |                             |
+  |  |       | | File  | |  Z N C V   |                             |
+  |  | ADD   | | R0-R7 | +------------+                             |
+  |  | SUB   | | SP    |                                            |
+  |  | AND   | +-------+                                            |
+  |  | OR    |                                                      |
+  |  | XOR   |                                                      |
+  |  +-------+                                                      |
+  |                                                                  |
+  +-----------------------------+------------------------------------+
+                                |
+                     +----------v----------+
+                     |    System Bus       |
+                     |  (16-bit address,   |
+                     |   16-bit data)      |
+                     +----------+----------+
+                                |
+              +-----------------+-----------------+
+              |                                   |
+     +--------v--------+              +-----------v-----------+
+     |     Memory      |              |   Memory-Mapped IO    |
+     |   64K words     |              |   0xFF00 - 0xFFFF     |
+     |   (128 KB)      |              |                       |
+     |                 |              |  0xFF00: char output   |
+     | 0x0000: program |              |  0xFF01: number output |
+     | 0x8000: RAM     |              |  0xFF02: timer display |
+     +-----------------+              +-----------------------+
+
+
+2. REGISTER FILE
+================================================================================
+
+  +--------------------------------------------------------------+
+  |                     Register File                             |
+  |                                                               |
+  |  General Purpose (3-bit index, used in dst/src fields):      |
+  |                                                               |
+  |  +------+  +------+  +------+  +------+                     |
+  |  |  R0  |  |  R1  |  |  R2  |  |  R3  |   16 bits each     |
+  |  | 000  |  | 001  |  | 010  |  | 011  |                     |
+  |  +------+  +------+  +------+  +------+                     |
+  |  +------+  +------+  +------+  +------+                     |
+  |  |  R4  |  |  R5  |  |  R6  |  |  R7  |                     |
+  |  | 100  |  | 101  |  | 110  |  | 111  |                     |
+  |  +------+  +------+  +------+  +------+                     |
+  |                                                               |
+  |  Special Purpose (not indexed by instruction fields):        |
+  |                                                               |
+  |  +----------+  Holds address of the next instruction.        |
+  |  |    PC    |  Starts at 0x0000. Incremented after each      |
+  |  | (16-bit) |  fetch. Modified by JMP, BEQ, CALL.            |
+  |  +----------+                                                |
+  |                                                               |
+  |  +----------+  Points to top of stack in RAM (0x8000-0xFEFF).|
+  |  |    SP    |  Starts at 0xFEFF. Pre-decremented on PUSH,   |
+  |  | (16-bit) |  post-incremented on POP. Grows downward.      |
+  |  +----------+                                                |
+  |                                                               |
+  |  +----------+  Updated after every ALU operation.            |
+  |  |  FLAGS   |  Only bits 0-3 are used:                       |
+  |  | (16-bit) |    bit 0 = Z (zero)                            |
+  |  +----------+    bit 1 = N (negative)                        |
+  |                   bit 2 = C (carry)                           |
+  |                   bit 3 = V (signed overflow)                 |
+  +--------------------------------------------------------------+
+
+
+3. ALU (ARITHMETIC LOGIC UNIT)
+================================================================================
+
+       Operand A (16-bit)         Operand B (16-bit)
+       (dst register value)       (src register or immediate)
+              |                          |
+              v                          v
+       +------+--------+---------+------+
+       |          ALU Operation          |
+       |                                 |
+       |  Opcode selects which path:     |
+       |                                 |
+       |   ADD / ADDI : A + B            |
+       |   SUB / CMP  : A + (~B) + 1    |
+       |   AND        : A & B            |
+       |   OR         : A | B            |
+       |   XOR        : A ^ B            |
+       |                                 |
+       +-----------+-----+---------+-----+
+                   |     |         |
+                   v     v         v
+              Result  Carry32   Sign bits
+              (16-bit)  (bit 16)  (a,b,r bit 15)
+                   |     |         |
+                   v     v         v
+              +----+-----+---------+----+
+              |      Flag Logic         |
+              |                         |
+              |  Z = (result == 0)      |
+              |  N = result bit 15      |
+              |  C = carry out (ADD/SUB)|
+              |  V = signed overflow    |
+              +--------+----------------+
+                       |
+                       v
+                  FLAGS register
+
+
+4. INSTRUCTION WORD LAYOUTS
+================================================================================
+
+  Layout 1: Register instructions (MOV, LOAD, STORE, ADD, SUB, AND, OR, XOR,
+                                    CMP, CALL, PUSH, POP)
+
+    15  14  13  12 | 11  10   9 |  8   7   6 |  5   4   3   2   1   0
+   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+   |    OPCODE     |    DST    |    SRC    |       unused (000000)   |
+   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+         4 bits       3 bits     3 bits           6 bits
+
+
+  Layout 2: ADDI (add signed immediate)
+
+    15  14  13  12 | 11  10   9 |  8   7   6 |  5   4   3   2   1   0
+   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+   |    0101       |    DST    |    000      | signed imm (6 bits)  |
+   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+         4 bits       3 bits     3 unused          6 bits (-32..+31)
+
+
+  Layout 3: MOVI (two-word immediate load)
+
+    Word 1:
+    15  14  13  12 | 11  10   9 |  8   7   6   5   4   3   2   1   0
+   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+   |    0001       |    DST    |       unused (000000000)            |
+   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+    Word 2:
+    15  14  13  12  11  10   9   8   7   6   5   4   3   2   1   0
+   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+   |               full 16-bit immediate value                      |
+   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+
+  Layout 4a: JMP (PC-relative, bit 11 = 0)
+
+    15  14  13  12 | 11 | 10   9   8   7   6   5   4   3   2   1   0
+   +---+---+---+---+----+---+---+---+---+---+---+---+---+---+---+---+
+   |    1011       | 0  |       signed offset (11 bits)              |
+   +---+---+---+---+----+---+---+---+---+---+---+---+---+---+---+---+
+
+  Layout 4b: JMP (register-indirect, bit 11 = 1)
+
+    15  14  13  12 | 11 | 10   9 |  8   7   6 |  5   4   3   2   1   0
+   +---+---+---+---+----+---+---+---+---+---+---+---+---+---+---+---+
+   |    1011       | 1  |  000   |    SRC    |       unused          |
+   +---+---+---+---+----+---+---+---+---+---+---+---+---+---+---+---+
+
+  Layout 4c: BEQ (PC-relative only)
+
+    15  14  13  12 | 11  10   9   8   7   6   5   4   3   2   1   0
+   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+   |    1100       |          signed offset (12 bits)                |
+   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+
+5. MEMORY MAP
+================================================================================
+
+   0x0000 +---------------------------+
+          |                           |
+          |     Program Space         |   Instructions loaded here
+          |     (32,768 words)        |   by the emulator at startup.
+          |                           |   PC starts at 0x0000.
+          |                           |
+   0x8000 +---------------------------+
+          |                           |
+          |     RAM                   |   Variables, Fibonacci output,
+          |     (32,511 words)        |   and the stack all live here.
+          |                           |
+          |                           |
+          |                           |
+          |           Stack           |   Stack grows downward from
+          |            |              |   SP = 0xFEFF.
+          |            v              |
+          |                           |
+   0xFF00 +---------------------------+
+          |  IO: 0xFF00 char output   |   Writing here triggers device
+          |  IO: 0xFF01 number output |   behavior instead of storing
+          |  IO: 0xFF02 timer display |   to RAM. The CPU uses plain
+          |  (256 words)              |   STORE instructions.
+   0xFFFF +---------------------------+
+
+
+6. FETCH / DECODE / EXECUTE CYCLE
+================================================================================
+
+   Every instruction goes through these three stages:
+
+   +------------------+      +------------------+      +------------------+
+   |      FETCH       |      |     DECODE       |      |    EXECUTE       |
+   |                  |      |                  |      |                  |
+   | 1. Read mem[PC]  | ---> | 1. Extract       | ---> | 1. Read operands |
+   |    into IR       |      |    opcode (15:12) |      |    from regs     |
+   | 2. Save PC as    |      | 2. Extract        |      | 2. ALU computes  |
+   |    instr_addr    |      |    dst (11:9)     |      |    result, sets  |
+   | 3. PC = PC + 1   |      | 3. Extract        |      |    FLAGS         |
+   |                  |      |    src (8:6)      |      | 3. Write result  |
+   | (MOVI: also read |      | 4. Extract imm    |      |    to dst reg    |
+   |  mem[PC], PC++)  |      |    or offset      |      |    or memory     |
+   +------------------+      +------------------+      +------------------+
+
+   The loop repeats until a HALT instruction is reached (JMP offset 0,
+   which causes PC to point back at the same instruction forever).
+
+
+7. DATA FLOW FOR KEY INSTRUCTIONS
+================================================================================
+
+   ADD R1, R2:
+   +---------+            +-------+          +---------+
+   | R1 (dst)|---value--->| ALU   |--result->| R1 (dst)|
+   | R2 (src)|---value--->| (ADD) |          | FLAGS   |
+   +---------+            +-------+          +---------+
+
+   LOAD R2, [R0]:
+   +---------+     +-----+     +--------+     +---------+
+   | R0 (src)|---->| Bus |---->| Memory |---->| R2 (dst)|
+   | (addr)  |     |     |     | [R0]   |     | FLAGS   |
+   +---------+     +-----+     +--------+     +---------+
+
+   STORE [R1], R2:
+   +---------+     +-----+     +--------+
+   | R2 (src)|---->| Bus |---->| Memory |  (or IO if addr >= 0xFF00)
+   | (data)  |     |     |     | [R1]   |
+   | R1 (dst)|---->| Bus |     +--------+
+   | (addr)  |     +-----+
+   +---------+
+
+   BEQ label:
+   +---------+     +----------+     +---------+
+   | FLAGS   |---->| Z == 1?  |---->| PC      |
+   | (bit 0) |     | yes: PC  |     | updated |
+   +---------+     | = addr + |     +---------+
+                   | offset   |
+                   +----------+
+
+   CALL R6:
+   +---------+     +-----+     +--------+     +---------+
+   | SP - 1  |---->| Bus |---->| Memory |     | PC      |
+   | PC      |---->| Bus |---->| [SP]   |     | = R6    |
+   +---------+     +-----+     +--------+     +---------+
+     (push return address, then jump to R6)
+
+   PUSH R5:
+   +---------+     +-----+     +--------+
+   | SP - 1  |     | Bus |---->| Memory |
+   | R5      |---->| Bus |---->| [SP]   |
+   +---------+     +-----+     +--------+
+
+   POP R5:
+   +--------+     +-----+     +---------+
+   | Memory |---->| Bus |---->| R5      |
+   | [SP]   |     |     |     | SP + 1  |
+   +--------+     +-----+     +---------+
+
+
+8. STACK OPERATION
+================================================================================
+
+   The stack lives in RAM and grows downward. SP starts at 0xFEFF.
+
+    Initial:            After PUSH R0:       After POP R1:
+    SP = 0xFEFF         SP = 0xFEFE          SP = 0xFEFF
+
+    0xFEFD [        ]   0xFEFD [        ]    0xFEFD [        ]
+    0xFEFE [        ]   0xFEFE [ R0 val ] <- SP
+    0xFEFF [        ] <- SP                  0xFEFF [        ] <- SP
+                        0xFEFF [        ]    (R1 now holds old R0 val)
+
+   PUSH: SP--, then write to mem[SP]
+   POP:  read from mem[SP], then SP++
+
+
+9. SUBROUTINE CALL AND RETURN
+================================================================================
+
+   CALL R6 (R6 holds the function address):
+
+     Before:                   After CALL:
+     PC = 0x0010               PC = R6 (function entry)
+     SP = 0xFEFF               SP = 0xFEFE
+
+     Stack:                    Stack:
+     0xFEFE [         ]        0xFEFE [ 0x0011 ] <- SP  (return addr)
+     0xFEFF [         ] <- SP  0xFEFF [         ]
+
+   RET (pseudo: POP R7, then JMP R7):
+
+     Before:                   After POP R7:           After JMP R7:
+     SP = 0xFEFE               SP = 0xFEFF             PC = 0x0011
+     0xFEFE [0x0011] <- SP     R7 = 0x0011             (back to caller)
+
+
+================================================================================
+                           END OF SCHEMATIC
+================================================================================
