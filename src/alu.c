@@ -30,26 +30,31 @@ void alu_set_flags(CPU *cpu, uint16_t result) {
 }
 
 /*
- * set_flags_arith -- update all four flags for addition or subtraction
+ * set_flags_arith -- update all four flags after addition or subtraction
  *
  * Parameters:
- *   result  -- the 16-bit result already truncated to 16 bits
- *   full    -- the same result computed in 32 bits (used to detect carry)
- *   a, b    -- the original operands before the operation
- *   is_sub  -- 1 if this was a subtraction, 0 if addition
+ *   result  -- the 16-bit answer (already cut down to 16 bits)
+ *   full    -- the same answer computed in 32 bits (wider, for carry check)
+ *   a, b    -- the two original values before the operation
+ *   is_sub  -- pass 1 for subtraction, 0 for addition
  *
- * Carry detection:
- *   If the true mathematical result in 32 bits exceeds 0xFFFF, the addition
- *   overflowed 16 bits and a carry occurred.
+ * How each flag is set:
  *
- * Signed overflow detection:
- *   Addition overflows if both inputs have the same sign but the result has
- *   a different sign. For example, 0x7FFF + 0x0001 = 0x8000 (positive +
- *   positive = negative).
+ *   Z (zero):    result is exactly 0.
  *
- *   Subtraction overflows if the inputs have different signs and the result's
- *   sign differs from the first operand's sign. For example, 0x8000 - 0x0001
- *   = 0x7FFF (negative - positive = positive).
+ *   N (negative): the top bit of the result is 1, which in signed math
+ *                 means the number is negative.
+ *
+ *   C (carry):   the true answer was bigger than 65535 and didn't fit in
+ *                16 bits. We catch this by computing in 32 bits and checking
+ *                if anything ended up above 0xFFFF.
+ *
+ *   V (overflow): the answer is wrong in signed arithmetic. This happens
+ *                 when you add two positive numbers and the result looks
+ *                 negative, or add two negatives and get a positive.
+ *                 Example: 32767 + 1 = 32768, but in 16-bit signed that
+ *                 wraps to -32768, which is clearly wrong.
+ *                 For subtraction the same idea applies in reverse.
  */
 static void set_flags_arith(CPU *cpu, uint16_t result, uint32_t full,
                              uint16_t a, uint16_t b, int is_sub) {
