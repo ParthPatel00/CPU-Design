@@ -35,9 +35,69 @@ programs: $(ASM_BIN)
 	@./$(ASM_BIN) $(PROGRAMS)/timer.asm     $(PROGRAMS)/timer.bin
 	@echo "[ASM] multiply.asm"
 	@./$(ASM_BIN) $(PROGRAMS)/multiply.asm  $(PROGRAMS)/multiply.bin
+	@echo "[ASM] primes.asm"
+	@./$(ASM_BIN) $(PROGRAMS)/primes.asm    $(PROGRAMS)/primes.bin
+
+# Automated test suite -- compares actual output against expected output
+# Prints PASS or FAIL for each test. Exit code is non-zero if any test fails.
+test: $(EMU_BIN) programs
+	@echo ""
+	@echo "========================================"
+	@echo "  EduCore16 Automated Test Suite"
+	@echo "========================================"
+	@echo ""
+	@PASS=0; FAIL=0; \
+	\
+	printf "  [TEST] hello        ... "; \
+	ACTUAL=$$(./$(EMU_BIN) run $(PROGRAMS)/hello.bin 2>/dev/null | grep -v "^Loaded"); \
+	EXPECT="Hello, World"; \
+	if [ "$$ACTUAL" = "$$EXPECT" ]; then echo "PASS"; PASS=$$((PASS+1)); \
+	else echo "FAIL"; echo "    expected: $$EXPECT"; echo "    got:      $$ACTUAL"; FAIL=$$((FAIL+1)); fi; \
+	\
+	printf "  [TEST] fibonacci    ... "; \
+	ACTUAL=$$(./$(EMU_BIN) run $(PROGRAMS)/fibonacci.bin 2>/dev/null | grep -v "^Loaded" | tr -s ' ' | sed 's/^ //;s/ $$//' ); \
+	EXPECT="0 1 1 2 3 5 8 13 21 34"; \
+	if [ "$$ACTUAL" = "$$EXPECT" ]; then echo "PASS"; PASS=$$((PASS+1)); \
+	else echo "FAIL"; echo "    expected: $$EXPECT"; echo "    got:      $$ACTUAL"; FAIL=$$((FAIL+1)); fi; \
+	\
+	printf "  [TEST] timer (last) ... "; \
+	ACTUAL=$$(./$(EMU_BIN) run $(PROGRAMS)/timer.bin 2>/dev/null | grep -v "^Loaded" | tail -1); \
+	EXPECT="[TIMER] 1"; \
+	if [ "$$ACTUAL" = "$$EXPECT" ]; then echo "PASS"; PASS=$$((PASS+1)); \
+	else echo "FAIL"; echo "    expected: $$EXPECT"; echo "    got:      $$ACTUAL"; FAIL=$$((FAIL+1)); fi; \
+	\
+	printf "  [TEST] timer (100)  ... "; \
+	ACTUAL=$$(./$(EMU_BIN) run $(PROGRAMS)/timer.bin 2>/dev/null | grep -v "^Loaded" | head -1); \
+	EXPECT="[TIMER] 100"; \
+	if [ "$$ACTUAL" = "$$EXPECT" ]; then echo "PASS"; PASS=$$((PASS+1)); \
+	else echo "FAIL"; echo "    expected: $$EXPECT"; echo "    got:      $$ACTUAL"; FAIL=$$((FAIL+1)); fi; \
+	\
+	printf "  [TEST] multiply     ... "; \
+	ACTUAL=$$(./$(EMU_BIN) run $(PROGRAMS)/multiply.bin 2>/dev/null | grep -v "^Loaded" | tr -s ' ' | sed 's/^ //;s/ $$//'); \
+	EXPECT="42"; \
+	if [ "$$ACTUAL" = "$$EXPECT" ]; then echo "PASS"; PASS=$$((PASS+1)); \
+	else echo "FAIL"; echo "    expected: $$EXPECT"; echo "    got:      $$ACTUAL"; FAIL=$$((FAIL+1)); fi; \
+	\
+	printf "  [TEST] fib dump     ... "; \
+	ACTUAL=$$(./$(EMU_BIN) dump $(PROGRAMS)/fibonacci.bin 0x8000 0x8009 2>/dev/null | grep "^0x8000"); \
+	EXPECT="0x8000  0x0000  0x0001  0x0001  0x0002  0x0003  0x0005  0x0008  0x000D  "; \
+	if [ "$$ACTUAL" = "$$EXPECT" ]; then echo "PASS"; PASS=$$((PASS+1)); \
+	else echo "FAIL"; echo "    expected: $$EXPECT"; echo "    got:      $$ACTUAL"; FAIL=$$((FAIL+1)); fi; \
+	\
+	printf "  [TEST] primes       ... "; \
+	ACTUAL=$$(./$(EMU_BIN) run $(PROGRAMS)/primes.bin 2>/dev/null | grep -v "^Loaded" | tr -s ' ' | sed 's/^ //;s/ $$//'); \
+	EXPECT="2 3 5 7 11 13 17 19 23 29"; \
+	if [ "$$ACTUAL" = "$$EXPECT" ]; then echo "PASS"; PASS=$$((PASS+1)); \
+	else echo "FAIL"; echo "    expected: $$EXPECT"; echo "    got:      $$ACTUAL"; FAIL=$$((FAIL+1)); fi; \
+	\
+	echo ""; \
+	echo "  Results: $$PASS passed, $$FAIL failed"; \
+	echo "========================================"; \
+	echo ""; \
+	test $$FAIL -eq 0
 
 clean:
 	rm -f $(EMU_OBJS) $(ASM_OBJS) $(EMU_BIN) $(ASM_BIN)
 	rm -f $(PROGRAMS)/*.bin
 
-.PHONY: all programs clean
+.PHONY: all programs test clean
