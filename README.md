@@ -298,7 +298,7 @@ CPU-Design/
 
 | Team Member | Contributions |
 |---|---|
-| **[TEAMMATE FULL NAME]** | Designed the overall CPU architecture, instruction set, register layout, memory map, and MMIO scheme. Implemented all seven emulator modules: `cpu.c` (register file), `alu.c` (arithmetic and logic with full flag updates), `control.c` (Fetch/Decode/Execute loop for all 16 opcodes, silent and verbose modes), `bus.c` (memory routing), `memory.c` (64K array, file loader, hex dump), `io.c` (MMIO devices), `main.c` (CLI). Wrote `docs/CPU_Design.md` (full ISA documentation) and `docs/cpu_schematic.txt`. |
+| **Parth Patel** | Designed the overall CPU architecture, instruction set, register layout, memory map, and MMIO scheme. Implemented all seven emulator modules: `cpu.c` (register file), `alu.c` (arithmetic and logic with full flag updates), `control.c` (Fetch/Decode/Execute loop for all 16 opcodes, silent and verbose modes), `bus.c` (memory routing), `memory.c` (64K array, file loader, hex dump), `io.c` (MMIO devices), `main.c` (CLI). Wrote `docs/CPU_Design.md` (full ISA documentation) and `docs/cpu_schematic.txt`. |
 | **Harshitha Vadavalli** | Implemented the two-pass assembler: `assembler.c` (full label resolution, instruction encoding for all 16 opcodes and 3 pseudo-instructions, `.word` directive, hex/decimal/char literals, indirect addressing), `assembler.h`, `asm_main.c` (CLI). Wrote all five assembly programs: `hello.asm`, `fibonacci.asm`, `timer.asm`, `multiply.asm`, `primes.asm`. Wrote `docs/Program_Layout_and_Execution.md`. Updated `Makefile` with `programs`, `test`, and `clean` targets. Wrote `README.md`. Managed GitHub repository. |
 
 ---
