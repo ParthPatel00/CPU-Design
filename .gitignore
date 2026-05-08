@@ -1,0 +1,10 @@
+# Compiled binaries
+src/cpu
+src/asm
+
+# Object files
+src/*.o
+
+# macOS junk
+.DS_Store
+AGENTS.md
