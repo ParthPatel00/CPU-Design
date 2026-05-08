@@ -1,79 +1,82 @@
 # EduCore16 — 16-bit Software CPU in C
 
-**CMPE 220 — System Software | San Jose State University | Spring 2026**
+**Course:** CMPE 220 — System Software | San Jose State University | Spring 2026
 
-**Team:** Harshitha Vadavalli &amp; Parth Patel
+**Team:** Group 6 — Harshitha Vadavalli & Parth Patel
 
 **GitHub:** https://github.com/ParthPatel00/CPU-Design
 
 ---
 
-## What This Project Is
+## At a Glance
 
-EduCore16 is a complete **16-bit CPU emulator and assembler** written in C from scratch.
-
-It simulates every hardware component of a real processor — register file, ALU, control unit, system bus, 64K word memory, and memory-mapped I/O — all separated into dedicated source files that mirror physical CPU architecture. Alongside the emulator, we built a full **two-pass assembler** that compiles `.asm` source files into binary programs the CPU runs.
-
-Five assembly programs demonstrate the full capability of the CPU: Hello World, Fibonacci Sequence, Timer Countdown, Recursive Multiply, and Prime Numbers.
+| What | Details |
+|---|---|
+| Language | C (standard C11, no external libraries) |
+| CPU | 16-bit, 8 general-purpose registers, 16 instructions |
+| Assembler | Two-pass, supports labels, pseudo-instructions, hex/decimal literals |
+| Programs | Hello World, Fibonacci, Timer, Recursive Multiply, Prime Numbers |
+| Tests | 7 automated tests — all passing |
+| Platforms | macOS, Linux |
 
 ---
 
 ## Requirements
 
 - macOS or Linux
-- GCC (any modern version)
-- Git
+- GCC
 - Make
-
-No external libraries. Pure standard C.
+- Git
 
 ---
 
-## Build and Run — 4 Steps
+## How to Build and Run — First Time
 
-### Step 1 — Clone the Repository
+> **Quick Start — Run Everything in One Command**
+>
+> If you would like to build the project and see all programs running immediately, the following three commands are all you need:
+>
+> ```bash
+> git clone https://github.com/ParthPatel00/CPU-Design.git
+> cd CPU-Design/src
+> make demo-part1    # Part 1: builds, assembles, and runs all programs
+> make demo-part2    # Part 2: recursive multiply with full stack trace
+> ```
+>
+> **Prefer to run each step individually?** Continue with the numbered steps below.
+
+---
+
+### 1. Clone
 
 ```bash
 git clone https://github.com/ParthPatel00/CPU-Design.git
 cd CPU-Design/src
 ```
 
----
-
-### Step 2 — Build the Emulator and Assembler
+### 2. Build
 
 ```bash
 make
 ```
 
-This compiles all source files and produces two executables in `src/`:
+Compiles everything and produces two executables in `src/`:
+- `cpu` — the emulator
+- `asm` — the assembler
 
-- **`cpu`** — the CPU emulator (load, run, verbose trace, memory dump)
-- **`asm`** — the assembler (compiles `.asm` source to `.bin` binary)
+> If you see `make: Nothing to be done for 'all'` — that is normal, everything is already compiled. Skip to step 3.
+> To force a full rebuild from scratch: `make clean` then `make`.
 
----
-
-### Step 3 — Assemble All Programs
+### 3. Assemble all programs
 
 ```bash
 make programs
 ```
 
-This runs the assembler on all five programs and places the `.bin` files in `programs/`:
+Runs the assembler on all five `.asm` files and writes `.bin` files to `programs/`.
 
-```
-[ASM] hello.asm
-[ASM] fibonacci.asm
-[ASM] timer.asm
-[ASM] multiply.asm
-[ASM] primes.asm
-```
+### 4. Run the programs
 
----
-
-### Step 4 — Run the Programs
-
-**Hello, World**
 ```bash
 ./cpu run ../programs/hello.bin
 ```
@@ -81,7 +84,6 @@ This runs the assembler on all five programs and places the `.bin` files in `pro
 Hello, World
 ```
 
-**Fibonacci Sequence** — first 10 numbers
 ```bash
 ./cpu run ../programs/fibonacci.bin
 ```
@@ -89,7 +91,6 @@ Hello, World
 0 1 1 2 3 5 8 13 21 34
 ```
 
-**Timer Countdown** — 100 down to 1
 ```bash
 ./cpu run ../programs/timer.bin
 ```
@@ -100,7 +101,6 @@ Hello, World
 [TIMER] 1
 ```
 
-**Recursive Multiply** — multiply(6, 7) = 42 using CALL/PUSH/POP/RET
 ```bash
 ./cpu run ../programs/multiply.bin
 ```
@@ -108,7 +108,6 @@ Hello, World
 42
 ```
 
-**Prime Numbers** — first 10 primes via trial division
 ```bash
 ./cpu run ../programs/primes.bin
 ```
@@ -116,53 +115,21 @@ Hello, World
 2 3 5 7 11 13 17 19 23 29
 ```
 
----
+### 5. Run everything in one command
 
-## Fetch / Decode / Execute — Verbose Mode
-
-Watch every instruction cycle step by step:
-
+**Part 1 — CPU Design:**
 ```bash
-./cpu verbose ../programs/timer.bin
+make demo-part1
 ```
+Builds, assembles, and runs all five programs showing actual output + Fibonacci memory dump. No other commands needed.
 
-```
-========= Cycle 2 =========
-[FETCH]   PC=0x0004  instruction=0x3200
-[DECODE]  opcode=0x3  dst=R1  src=R0
-[TIMER] 100
-[EXECUTE] --- CPU State ---
-  R0 = 0x0064 (100)    R1 = 0xFF02 (65282)
-  PC = 0x0005          SP = 0xFEFF
-  FLAGS = Z:0 N:0 C:0 V:0
-```
-
-Every cycle prints all three stages: FETCH reads the raw instruction word, DECODE extracts opcode and register fields, EXECUTE shows the complete CPU state after the instruction ran.
-
----
-
-## Memory Dump — Inspect RAM Contents
-
-After running Fibonacci, verify what was stored in RAM:
-
+**Part 2 — Program Layout and Execution:**
 ```bash
-./cpu dump ../programs/fibonacci.bin 0x8000 0x8009
+make demo-part2
 ```
+Runs recursive multiply, shows full stack pointer trace per cycle, and prints the final CPU state confirming R0 = 42 and stack fully unwound.
 
-```
---- Memory Dump [0x8000 - 0x8009] ---
-ADDR    +0      +1      +2      +3      +4      +5      +6      +7
-0x8000  0x0000  0x0001  0x0001  0x0002  0x0003  0x0005  0x0008  0x000D
-0x8008  0x0015  0x0022
-```
-
-The 10 Fibonacci numbers (0, 1, 1, 2, 3, 5, 8, 13, 21, 34) stored correctly in memory at addresses 0x8000–0x8009.
-
----
-
-## Automated Test Suite
-
-Run all 7 tests at once — each prints PASS or FAIL:
+### 6. Run all automated tests
 
 ```bash
 make test
@@ -187,6 +154,52 @@ make test
 
 ---
 
+## Special Modes
+
+### Verbose — See Every Clock Cycle (Fetch / Decode / Execute)
+
+```bash
+./cpu verbose ../programs/timer.bin
+```
+
+```
+========= Cycle 2 =========
+[FETCH]   PC=0x0004  instruction=0x3200
+[DECODE]  opcode=0x3  dst=R1  src=R0
+[TIMER] 100
+[EXECUTE] --- CPU State ---
+  R0 = 0x0064 (100)    R1 = 0xFF02 (65282)
+  PC = 0x0005          SP = 0xFEFF
+  FLAGS = Z:0 N:0 C:0 V:0
+```
+
+Every cycle shows FETCH (raw instruction), DECODE (opcode + registers), EXECUTE (full CPU state).
+
+### Memory Dump — Inspect RAM
+
+```bash
+./cpu dump ../programs/fibonacci.bin 0x8000 0x8009
+```
+
+```
+--- Memory Dump [0x8000 - 0x8009] ---
+ADDR    +0      +1      +2      +3      +4      +5      +6      +7
+0x8000  0x0000  0x0001  0x0001  0x0002  0x0003  0x0005  0x0008  0x000D
+0x8008  0x0015  0x0022
+```
+
+The 10 Fibonacci numbers stored in RAM at addresses 0x8000–0x8009.
+
+### Clean Build
+
+```bash
+make clean
+```
+
+Removes all compiled files and `.bin` files so everything can be rebuilt fresh.
+
+---
+
 ## CPU Architecture
 
 ```
@@ -202,8 +215,8 @@ make test
 │  │             │  │ CMP  flags   │  │ R6  R7      │ │
 │  └──────┬──────┘  └──────────────┘  │ PC  SP FLAGS│ │
 │         │                           └─────────────┘ │
-└─────────┼──────────────────────────────────────────-─┘
-          │ System Bus  (16-bit address / 16-bit data)
+└─────────┼─────────────────────────────────────────────┘
+          │ System Bus (16-bit address / 16-bit data)
           │
    ┌──────┴──────────────────────┐
    │                             │
@@ -219,16 +232,16 @@ make test
 
 | Address Range | Purpose |
 |---|---|
-| `0x0000 – 0x7FFF` | Program space — code is loaded and executed here |
-| `0x8000 – 0xFEFF` | RAM + Stack — data storage; stack grows downward from 0xFEFF |
-| `0xFF00 – 0xFFFF` | Memory-Mapped I/O — writes go to output devices, not RAM |
+| `0x0000 – 0x7FFF` | Program space — code loaded and executed here |
+| `0x8000 – 0xFEFF` | RAM + Stack — stack grows downward from 0xFEFF |
+| `0xFF00 – 0xFFFF` | Memory-Mapped I/O — writes go to output devices |
 
 ### Registers
 
 | Register | Width | Purpose |
 |---|---|---|
 | R0 – R7 | 16-bit | General purpose |
-| PC | 16-bit | Program Counter — address of next instruction |
+| PC | 16-bit | Program Counter |
 | SP | 16-bit | Stack Pointer — starts at 0xFEFF, grows downward |
 | FLAGS | 16-bit | Z (zero), N (negative), C (carry), V (overflow) |
 
@@ -236,32 +249,32 @@ make test
 
 ## Instruction Set — 16 Instructions
 
-| Opcode | Instruction | Operation |
+| Opcode | Instruction | What It Does |
 |---|---|---|
 | `0x0` | `MOV`   | Copy register to register |
-| `0x1` | `MOVI`  | Load 16-bit constant into register (2-word instruction) |
+| `0x1` | `MOVI`  | Load 16-bit constant into register |
 | `0x2` | `LOAD`  | Read memory into register |
 | `0x3` | `STORE` | Write register to memory or I/O device |
 | `0x4` | `ADD`   | Add two registers |
-| `0x5` | `ADDI`  | Add signed 6-bit immediate (−32 to +31) to register |
+| `0x5` | `ADDI`  | Add signed 6-bit immediate to register |
 | `0x6` | `SUB`   | Subtract two registers |
 | `0x7` | `AND`   | Bitwise AND |
 | `0x8` | `OR`    | Bitwise OR |
 | `0x9` | `XOR`   | Bitwise XOR |
 | `0xA` | `CMP`   | Compare — sets FLAGS, no writeback |
-| `0xB` | `JMP`   | Unconditional jump (PC-relative or register-indirect) |
+| `0xB` | `JMP`   | Unconditional jump |
 | `0xC` | `BEQ`   | Branch if Z flag = 1 |
-| `0xD` | `CALL`  | Call function — pushes return address, jumps to register |
+| `0xD` | `CALL`  | Call function — push return address, jump |
 | `0xE` | `PUSH`  | Push register onto stack |
 | `0xF` | `POP`   | Pop from stack into register |
 
-**Pseudo-instructions** (the assembler expands these automatically):
+**Pseudo-instructions** (assembler expands automatically):
 
-| Write This | Assembler Produces | Purpose |
+| Write | Expands To | Purpose |
 |---|---|---|
-| `HALT` | `JMP 0` (self-loop) | Stops the CPU cleanly |
-| `SUBI Rd, #n` | `ADDI Rd, #(-n)` | Subtract a constant from a register |
-| `RET` | `POP R7` + `JMP R7` | Return from a subroutine |
+| `HALT` | `JMP 0` | Stop the CPU |
+| `SUBI Rd, #n` | `ADDI Rd, #(-n)` | Subtract a constant |
+| `RET` | `POP R7` + `JMP R7` | Return from function |
 
 ---
 
@@ -270,26 +283,28 @@ make test
 ```
 CPU-Design/
 ├── src/
-│   ├── Makefile           Build system — make / make programs / make test / make clean
-│   ├── cpu.h / cpu.c      Register file (R0–R7, PC, SP, FLAGS), initialization
-│   ├── alu.h / alu.c      ALU: ADD, SUB, AND, OR, XOR, CMP — all math and logic with flags
-│   ├── control.h / .c     Fetch / Decode / Execute loop — the CPU brain, all 16 opcodes
-│   ├── bus.h / bus.c      Routes all reads/writes between CPU, memory, and I/O
-│   ├── memory.h / .c      64K word array, big-endian binary loader, hex dump
-│   ├── io.h / io.c        Three memory-mapped output devices: character, number, timer
-│   ├── assembler.h / .c   Two-pass assembler: .asm source text → .bin binary
-│   ├── asm_main.c         Assembler command-line entry point
-│   └── main.c             Emulator entry point (run / verbose / dump modes)
+│   ├── Makefile           make / make programs / make test / make clean
+│   ├── cpu.h / cpu.c      Register file (R0–R7, PC, SP, FLAGS)
+│   ├── alu.h / alu.c      ALU — ADD, SUB, AND, OR, XOR, CMP + flags
+│   ├── control.h / .c     Fetch / Decode / Execute loop — all 16 opcodes
+│   ├── bus.h / bus.c      Routes reads/writes between CPU, memory, I/O
+│   ├── memory.h / .c      64K word array, binary loader, hex dump
+│   ├── io.h / io.c        Memory-mapped I/O devices
+│   ├── assembler.h / .c   Two-pass assembler — .asm → .bin
+│   ├── asm_main.c         Assembler entry point
+│   └── main.c             Emulator entry point (run / verbose / dump)
 ├── programs/
-│   ├── hello.asm/.bin     Prints "Hello, World" via memory-mapped character I/O
-│   ├── fibonacci.asm/.bin First 10 Fibonacci numbers — printed and stored in RAM
-│   ├── timer.asm/.bin     Countdown 100→1 on the timer device
-│   ├── multiply.asm/.bin  Recursive multiply(6,7)=42 using CALL/PUSH/POP/RET
-│   └── primes.asm/.bin    First 10 prime numbers via trial division
+│   ├── hello.asm/.bin     Hello, World
+│   ├── fibonacci.asm/.bin First 10 Fibonacci numbers
+│   ├── timer.asm/.bin     Countdown 100 → 1
+│   ├── multiply.asm/.bin  Recursive multiply(6,7) = 42
+│   └── primes.asm/.bin    First 10 prime numbers
 └── docs/
-    ├── CPU_Design.md                   Full ISA, encoding, memory map, flag semantics
-    ├── cpu_schematic.txt               Detailed ASCII CPU architecture diagram
-    └── Program_Layout_and_Execution.md Stack frames, recursion walkthrough, memory layout
+    ├── CPU_Design.md                        Full ISA and encoding reference
+    ├── cpu_schematic.txt                    CPU architecture diagram
+    ├── Program_Layout_and_Execution.md      Stack frames and recursion walkthrough
+    ├── Report_Submission1_CPU_Design.md     Part 1 project report
+    └── Report_Submission2_Program_Layout.md Part 2 project report
 ```
 
 ---
@@ -298,16 +313,16 @@ CPU-Design/
 
 | Team Member | Contributions |
 |---|---|
-| **Parth Patel** | Designed the overall CPU architecture, instruction set, register layout, memory map, and MMIO scheme. Implemented all seven emulator modules: `cpu.c` (register file), `alu.c` (arithmetic and logic with full flag updates), `control.c` (Fetch/Decode/Execute loop for all 16 opcodes, silent and verbose modes), `bus.c` (memory routing), `memory.c` (64K array, file loader, hex dump), `io.c` (MMIO devices), `main.c` (CLI). Wrote `docs/CPU_Design.md` (full ISA documentation) and `docs/cpu_schematic.txt`. |
-| **Harshitha Vadavalli** | Implemented the two-pass assembler: `assembler.c` (full label resolution, instruction encoding for all 16 opcodes and 3 pseudo-instructions, `.word` directive, hex/decimal/char literals, indirect addressing), `assembler.h`, `asm_main.c` (CLI). Wrote all five assembly programs: `hello.asm`, `fibonacci.asm`, `timer.asm`, `multiply.asm`, `primes.asm`. Wrote `docs/Program_Layout_and_Execution.md`. Updated `Makefile` with `programs`, `test`, and `clean` targets. Wrote `README.md`. Managed GitHub repository. |
+| **Parth Patel** | Designed CPU architecture, ISA, memory map, and MMIO scheme. Implemented all seven emulator modules: `cpu.c`, `alu.c`, `control.c`, `bus.c`, `memory.c`, `io.c`, `main.c`. Wrote `docs/CPU_Design.md` and `docs/cpu_schematic.txt`. |
+| **Harshitha Vadavalli** | Implemented two-pass assembler: `assembler.c`, `assembler.h`, `asm_main.c`. Wrote all five assembly programs: `hello.asm`, `fibonacci.asm`, `timer.asm`, `multiply.asm`, `primes.asm`. Wrote both project reports, `docs/Program_Layout_and_Execution.md`, updated `Makefile`, wrote `README.md`, managed GitHub repository. |
 
 ---
 
-## Demo Video
+## Demo Videos
 
-Watch the Fibonacci Sequence demo here: **[ADD YOUTUBE LINK HERE]**
+**Part 1 — CPU Design (Fibonacci):** [ADD YOUTUBE LINK HERE]
 
-The video demonstrates: building the project from source, running all five programs, watching the Fetch/Decode/Execute trace in verbose mode, and verifying the Fibonacci memory dump.
+**Part 2 — Program Layout & Execution (Recursive Multiply):** [ADD YOUTUBE LINK HERE]
 
 ---
 
@@ -316,18 +331,20 @@ The video demonstrates: building the project from source, running all five progr
 ```bash
 cd CPU-Design/src
 
-make                                              # build cpu and asm
-make programs                                     # assemble all .asm files
-make test                                         # run all 7 automated tests
-make clean                                        # remove all build artifacts
+make                                                   # build
+make programs                                          # assemble all programs
+make demo-part1                                        # Part 1 — run all programs with output
+make demo-part2                                        # Part 2 — recursive multiply + stack trace
+make test                                              # run all 7 automated tests
+make clean                                             # clean build files
 
-./cpu run     ../programs/hello.bin               # Hello, World
-./cpu run     ../programs/fibonacci.bin           # 0 1 1 2 3 5 8 13 21 34
-./cpu run     ../programs/timer.bin               # [TIMER] 100 ... [TIMER] 1
-./cpu run     ../programs/multiply.bin            # 42
-./cpu run     ../programs/primes.bin              # 2 3 5 7 11 13 17 19 23 29
-./cpu verbose ../programs/timer.bin               # cycle-by-cycle trace
-./cpu dump    ../programs/fibonacci.bin 0x8000 0x8009   # memory dump
+./cpu run     ../programs/hello.bin                    # Hello, World
+./cpu run     ../programs/fibonacci.bin                # 0 1 1 2 3 5 8 13 21 34
+./cpu run     ../programs/timer.bin                    # [TIMER] 100 ... [TIMER] 1
+./cpu run     ../programs/multiply.bin                 # 42
+./cpu run     ../programs/primes.bin                   # 2 3 5 7 11 13 17 19 23 29
+./cpu verbose ../programs/timer.bin                    # cycle-by-cycle trace
+./cpu dump    ../programs/fibonacci.bin 0x8000 0x8009  # memory dump
 ```
 
 ---
