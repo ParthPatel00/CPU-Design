@@ -42,8 +42,8 @@ void io_handle(uint16_t addr, uint16_t data) {
             break;
 
         case IO_NUM_OUT:
-            /* Print the value as an unsigned decimal followed by a space */
-            printf("%u ", data);
+            /* Print the value as an unsigned decimal number */
+            printf("%u", data);
             fflush(stdout);
             break;
 

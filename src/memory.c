@@ -124,6 +124,5 @@ int memory_load_file(const char *path) {
     }
 
     fclose(f);
-    printf("Loaded %u words from '%s'\n", addr, path);
     return 0;
 }

@@ -24,8 +24,11 @@
         MOVI  R2, #0x8000   ; R2 = RAM address where we will save each result
         MOVI  R3, #10       ; R3 = how many numbers left to print (countdown from 10)
         MOVI  R5, #0xFF01   ; R5 = address of the number output device
+        MOVI  R6, #0xFF00   ; R6 = address of the character output device
+        MOVI  R7, #32       ; R7 = ASCII 32, which is a space character
 
 loop:   STORE [R5], R0      ; print the current Fibonacci number
+        STORE [R6], R7      ; print a space after the number
         STORE [R2], R0      ; also save it to RAM at address R2
         MOV   R4, R1        ; R4 = hold a copy of R1 before we overwrite it
         ADD   R1, R0        ; R1 = R0 + R1  (the next Fibonacci number)
@@ -35,7 +38,6 @@ loop:   STORE [R5], R0      ; print the current Fibonacci number
         BEQ   done          ; if counter hit 0, we have printed all 10 numbers
         JMP   loop          ; otherwise loop back for the next number
 
-done:   MOVI  R6, #0xFF00   ; R6 = address of the character output device
-        MOVI  R7, #10       ; R7 = ASCII 10, which is a newline character
-        STORE [R6], R7      ; print a newline so the output looks clean
+done:   MOVI  R7, #10       ; R7 = ASCII 10 = newline character
+        STORE [R6], R7      ; print a newline at the end
         HALT                ; done -- stop execution

@@ -1,8 +1,8 @@
 ; =========================================================================
-; Recursive Multiply
+; Recursive Multiply: multiply(3, 2) = 6
 ; =========================================================================
 ;
-; C equivalent:
+; C equivalent (see programs/multiply.c):
 ;
 ;   int multiply(int a, int b) {
 ;       if (b == 0) return 0;
@@ -10,73 +10,71 @@
 ;   }
 ;
 ;   int main(void) {
-;       int result = multiply(6, 7);
-;       printf("%d\n", result);    // prints 42
+;       int result = multiply(3, 2);
+;       printf("%d\n", result);    // prints 6
 ;       return 0;
 ;   }
 ;
 ; Calling convention:
-;   Arguments:     R0 = a (first),  R1 = b (second)
-;   Return value:  R0
-;   Caller sets up R0 and R1 before CALL. Callee returns result in R0.
-;   The function preserves R0 and R1 on the stack before recursing so
-;   each stack frame holds its own copy of a and b.
+;   R0 = first argument (a), also used for return value
+;   R1 = second argument (b)
+;   R6 = function address (loaded with MOVI before CALL)
+;   R7 = return address scratch (used by RET = POP R7; JMP R7)
 ;
 ; =========================================================================
 
-; --------------- Main Program (driver) ---------------
 
-        MOVI  R0, #6           ; a = 6
-        MOVI  R1, #7           ; b = 7
-        MOVI  R6, #multiply    ; load function address into R6
-        CALL  R6               ; call multiply(6, 7), result returned in R0
-        MOVI  R5, #0xFF01      ; number output IO address
-        STORE [R5], R0         ; print result (expect 42)
-        MOVI  R5, #0xFF00      ; character output IO address
-        MOVI  R4, #10          ; newline character
-        STORE [R5], R4         ; print newline
-        HALT
+; --------------- main() ---------------
+; C: int result = multiply(3, 2);
+;    printf("%d\n", result);
 
-; --------------- multiply(a=R0, b=R1) -> R0 ---------------
+        MOVI  R0, #3           ; first argument: a = 3
+        MOVI  R1, #2           ; second argument: b = 2
+        MOVI  R6, #multiply    ; load the address of multiply() into R6
+        CALL  R6               ; jump to multiply, push return address on stack
+                                ; after this returns, R0 holds the result
+
+        ; C: printf("%d\n", result) -- we use memory-mapped IO instead
+        MOVI  R5, #0xFF01      ; 0xFF01 = number output IO port
+        STORE [R5], R0         ; write R0 to the IO port, prints "6"
+        MOVI  R5, #0xFF00      ; 0xFF00 = character output IO port
+        MOVI  R4, #10          ; ASCII 10 = newline character
+        STORE [R5], R4         ; print the newline
+        HALT                   ; done, stop the CPU
+
+
+; --------------- multiply(a, b) ---------------
+; C: if (b == 0) return 0;
+;    return a + multiply(a, b - 1);
 ;
-; Each recursive call builds a stack frame:
-;
-;   High address
-;    |  ...             |
-;    |  return address  |  <-- pushed by CALL
-;    |  saved R0 (a)    |  <-- pushed by PUSH R0
-;    |  saved R1 (b)    |  <-- pushed by PUSH R1
-;    |  ...             |
-;   Low address (SP points here)
-;
-; On return, the frame is unwound by POP R1, POP R2, then RET.
+; Stack frame per call (3 words):
+;    | return address |  pushed by CALL
+;    | saved R0 (a)   |  pushed by PUSH R0
+;    | saved R1 (b)   |  pushed by PUSH R1  <-- SP
 
 multiply:
-        ; Base case check: is b == 0?
-        ADDI  R1, #0           ; add 0 to R1: value unchanged, Z flag set if R1 is 0
-        BEQ   mul_base         ; if b == 0, jump to base case
+        ; C: if (b == 0)
+        ADDI  R1, #0           ; adds 0 to b, doesn't change value but sets Z flag
+        BEQ   mul_base         ; if Z flag is set (b == 0), skip to base case
 
-        ; --- Recursive case ---
+        ; save a and b so we can restore them after the recursive call
+        PUSH  R0               ; push a onto the stack
+        PUSH  R1               ; push b onto the stack
 
-        ; Save current a and b before the recursive call overwrites them
-        PUSH  R0               ; save a onto the stack
-        PUSH  R1               ; save b onto the stack
+        ; C: multiply(a, b - 1)
+        ADDI  R1, #-1          ; b = b - 1 (R0 still has a, unchanged)
+        MOVI  R6, #multiply    ; reload the function address
+        CALL  R6               ; recurse: R0 = multiply(a, b - 1)
 
-        ; Set up arguments for recursive call: multiply(a, b - 1)
-        ADDI  R1, #-1          ; b = b - 1  (R0 still holds a, unchanged)
-        MOVI  R6, #multiply    ; reload function address into R6
-        CALL  R6               ; R0 = multiply(a, b - 1)
+        ; back from recursion, restore our saved a and b
+        POP   R1               ; pop b back off the stack
+        POP   R2               ; pop a into R2 (can't use R0, it has the result)
 
-        ; Restore saved registers after the recursive call returns
-        POP   R1               ; restore b (for stack hygiene)
-        POP   R2               ; restore a into R2 (R0 holds the recursive result)
+        ; C: return a + multiply(a, b - 1)
+        ADD   R0, R2           ; R0 = recursive result + a
+        RET                    ; pop return address, jump back to caller
 
-        ; Combine: result = a + multiply(a, b - 1)
-        ADD   R0, R2           ; R0 = recursive_result + a
-        RET                    ; return to caller
-
-        ; --- Base case: b == 0, return 0 ---
-
+        ; C: return 0
 mul_base:
         MOVI  R0, #0           ; return value = 0
-        RET                    ; return to caller
+        RET                    ; pop return address, jump back to caller
