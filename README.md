@@ -4,7 +4,15 @@ CMPE 220, System Software | San Jose State University | Spring 2026
 
 Group 6: Parth Patel & Harshitha Vadavalli
 
-GitHub: https://github.com/ParthPatel00/CPU-Design
+## Demo Videos
+
+- CPU Design: https://youtu.be/3Vv8T-5yO6Y
+- Program Layout & Execution: https://youtu.be/WSU53NVQLPs
+
+## Reports
+
+- [CPU Design Report](docs/Report_CPU_Design.md)
+- [Program Layout & Execution Report](docs/Report_Program_Layout.md)
 
 ## Team Contributions
 
@@ -249,4 +257,3 @@ The assembler works in two passes. In the first pass, it scans through the entir
 | multiply.asm  | Recursive multiply(3, 2) = 6 using CALL/PUSH/POP/RET  |
 
 For detailed execution traces, fetch/decode/execute cycle breakdowns, memory layout, and recursion stack analysis, see [Program_details.md](Program_details.md).
-
